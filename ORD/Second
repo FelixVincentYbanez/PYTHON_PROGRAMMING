@@ -146,7 +146,7 @@ try:
     
     # Get the button's data attributes to find the target URL
     button_data = view_full_details_btn.get_attribute('data-v-652da20a')
-    
+        
     # Click the button which should navigate - we'll try to open in new tab
     # First, let's try to see if there's a parent link or href
     parent_link = view_full_details_btn.find_element(By.XPATH, "ancestor::a[@href]")
@@ -880,6 +880,11 @@ while True:
         break
 
     try:
+        processed_count += 1
+        print(f"\n{'='*60}")
+        print(f"Processing View Full Details #{processed_count}...")
+        print(f"{'='*60}")
+        
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", vfd_btn)
         time.sleep(0.4)
         # Mark as processed to avoid re-clicking the same button
@@ -1465,6 +1470,8 @@ while True:
         print(f"⚠ Unexpected error during loop: {e}")
         break
 
-print(f"Loop complete. Processed {processed_count} View Full Details entries.")
+print(f"\n{'='*60}")
+print(f"Loop complete. Processed {processed_count} View Full Details entries total.")
+print(f"{'='*60}")
 
 
