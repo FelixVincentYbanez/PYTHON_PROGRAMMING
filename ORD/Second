@@ -1,0 +1,1470 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support import expected_conditions as EC
+import time
+import re
+
+PATH = r"C:\Program Files (x86)\chromedriver.exe"
+service = Service(PATH)
+driver = webdriver.Chrome(service=service)
+
+def wait_ready(timeout=20):
+    """Wait for page to fully load"""
+    try:
+        WebDriverWait(driver, timeout).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+    except Exception:
+        time.sleep(1)
+
+# Navigate to home
+driver.get("https://open-reaction-database.org/")
+wait_ready()
+print("✓ Navigated to home page")
+
+# Click Browse button
+try:
+    browse_btn = WebDriverWait(driver, 20).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/browse'].nav-link"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", browse_btn)
+    time.sleep(0.5)
+    browse_btn.click()
+    print("✓ Clicked Browse button")
+except Exception as e:
+    print(f"⚠ Failed to click Browse button: {e}")
+
+wait_ready(10)
+time.sleep(2)
+
+# Scroll down to find pagination dropdown
+print("\nScrolling to find pagination...")
+try:
+    # Scroll down multiple times to find the pagination select
+    for _ in range(15):
+        driver.execute_script("window.scrollBy(0, 300);")
+        time.sleep(0.3)
+    
+    # Find and interact with the pagination select
+    pagination_select = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "select#pagination"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", pagination_select)
+    time.sleep(0.5)
+    
+    # Select the 100 option
+    Select(pagination_select).select_by_value('100')
+    print("✓ Selected pagination: 100")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to set pagination: {e}")
+    try:
+        # Fallback: try using JavaScript
+        driver.execute_script("document.querySelector('select#pagination').value = '100'; document.querySelector('select#pagination').dispatchEvent(new Event('change'));")
+        print("✓ Set pagination to 100 (JS fallback)")
+        time.sleep(1)
+    except Exception as e2:
+        print(f"⚠ Pagination fallback also failed: {e2}")
+
+# Scroll up to find dataset link
+print("\nScrolling up to find dataset link...")
+try:
+    driver.execute_script("window.scrollTo(0, 0);")
+    time.sleep(1)
+    
+    # Find the dataset link
+    dataset_link = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/dataset/ord_dataset-00005539a1e04c809a9a78647bea649c']"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", dataset_link)
+    time.sleep(0.5)
+    
+    # Open the link in a new tab
+    dataset_url = dataset_link.get_attribute('href')
+    driver.execute_script("window.open(arguments[0], '_blank');", dataset_url)
+    print(f"✓ Opened dataset link in new tab: {dataset_url}")
+    time.sleep(2)
+    
+    # Switch to the new tab
+    driver.switch_to.window(driver.window_handles[-1])
+    print("✓ Switched to new tab")
+    wait_ready(15)
+    time.sleep(3)
+    
+except Exception as e:
+    print(f"⚠ Failed to open dataset link in new tab: {e}")
+
+# Scroll down to find pagination on dataset page
+print("\nScrolling to find pagination on dataset page...")
+try:
+    # Scroll down multiple times to find the pagination select
+    for _ in range(15):
+        driver.execute_script("window.scrollBy(0, 300);")
+        time.sleep(0.3)
+    
+    # Find and interact with the pagination select
+    pagination_select = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "select#pagination"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", pagination_select)
+    time.sleep(0.5)
+    
+    # Select the 100 option
+    Select(pagination_select).select_by_value('100')
+    print("✓ Selected pagination: 100 (dataset page)")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to set pagination on dataset page: {e}")
+    try:
+        # Fallback: try using JavaScript
+        driver.execute_script("document.querySelector('select#pagination').value = '100'; document.querySelector('select#pagination').dispatchEvent(new Event('change'));")
+        print("✓ Set pagination to 100 (JS fallback)")
+        time.sleep(1)
+    except Exception as e2:
+        print(f"⚠ Pagination fallback also failed: {e2}")
+
+# Scroll to top
+print("\nScrolling to top...")
+driver.execute_script("window.scrollTo(0, 0);")
+time.sleep(1)
+print("✓ Scrolled to top")
+
+# Save the dataset tab handle for later use
+dataset_handle = driver.current_window_handle
+print(f"✓ Saved dataset tab handle: {dataset_handle}")
+
+# Find and open "View Full Details" button in new tab
+print("\nLooking for View Full Details button...")
+try:
+    view_full_details_btn = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-v-652da20a='']"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", view_full_details_btn)
+    time.sleep(0.5)
+    
+    # Get the button's data attributes to find the target URL
+    button_data = view_full_details_btn.get_attribute('data-v-652da20a')
+    
+    # Click the button which should navigate - we'll try to open in new tab
+    # First, let's try to see if there's a parent link or href
+    parent_link = view_full_details_btn.find_element(By.XPATH, "ancestor::a[@href]")
+    target_url = parent_link.get_attribute('href')
+    driver.execute_script(f"window.open('{target_url}', '_blank');")
+    print(f"✓ Opened reaction details in new tab: {target_url}")
+    time.sleep(2)
+    
+    # Switch to the new tab
+    if len(driver.window_handles) > 1:
+        driver.switch_to.window(driver.window_handles[-1])
+        print("✓ Switched to reaction details tab")
+        wait_ready(10)
+        time.sleep(3)
+    
+except Exception as e:
+    print(f"⚠ Error with parent link approach: {e}")
+    try:
+        # Fallback: Try middle-click simulation or direct button click
+        view_full_details_btn = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-v-652da20a='']"))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", view_full_details_btn)
+        time.sleep(0.5)
+        
+        # Just click it normally
+        view_full_details_btn.click()
+        print("✓ Clicked View Full Details button")
+        wait_ready(10)
+        time.sleep(3)
+        
+    except Exception as e2:
+        print(f"⚠ Failed to open View Full Details: {e2}")
+
+# Scroll down to find the code button
+print("\nScrolling to find code button...")
+try:
+    # Scroll down to find the <> button
+    for _ in range(10):
+        driver.execute_script("window.scrollBy(0, 75);")
+        time.sleep(0.3)
+    
+    # Find the code button with data-v-144eb116
+    code_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+    time.sleep(0.5)
+    
+    # Click the code button
+    code_button.click()
+    print("✓ Clicked code button (<>)")
+    time.sleep(2)
+    
+except Exception as e:
+    print(f"⚠ Failed to find/click code button: {e}")
+    try:
+        # Fallback: try using XPath or different selector
+        code_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'button') and contains(text(), '<>')]"))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+        time.sleep(0.5)
+        code_button.click()
+        print("✓ Clicked code button (<>) - fallback")
+        time.sleep(2)
+    except Exception as e2:
+        print(f"⚠ Code button click also failed: {e2}")
+
+# Scrape the data from the code view
+print("\nScraping data from code view...")
+try:
+    time.sleep(1)
+    
+    # Find the code/pre element containing the data
+    code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+    
+    scraped_value = None
+    scraped_reaction_role = None
+    
+    for element in code_elements:
+        try:
+            text = element.text
+            
+            # Search for "value"
+            if '"value":' in text and not scraped_value:
+                value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                if value_match:
+                    scraped_value = value_match.group(1)
+                    print(f"✓ Found value: {scraped_value}")
+            
+            # Search for reaction_role
+            if 'reaction_role' in text and not scraped_reaction_role:
+                role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                if role_match:
+                    scraped_reaction_role = role_match.group(1)
+                    print(f"✓ Found reaction_role: {scraped_reaction_role}")
+            
+            # Break if we found both
+            if scraped_value and scraped_reaction_role:
+                break
+        except Exception:
+            continue
+    
+    if not scraped_value:
+        print("⚠ Could not find value")
+    if not scraped_reaction_role:
+        print("⚠ Could not find reaction_role")
+    
+except Exception as e:
+    print(f"⚠ Failed to scrape data: {e}")
+
+# Close the code view
+print("\nClosing code view...")
+try:
+    close_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+    time.sleep(0.3)
+    
+    close_button.click()
+    print("✓ Closed code view (clicked ✕)")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to close code view: {e}")
+    try:
+        # Fallback: try finding by text content
+        close_button = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'close') and contains(text(), '✕')]"))
+        )
+        close_button.click()
+        print("✓ Closed code view (fallback)")
+        time.sleep(1)
+    except Exception as e2:
+        print(f"⚠ Close button fallback also failed: {e2}")
+
+# Click the Solvent tab
+print("\nClicking Solvent tab...")
+try:
+    solvent_tab = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'tab') and contains(text(), 'Solvent')]"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", solvent_tab)
+    time.sleep(0.5)
+    
+    solvent_tab.click()
+    print("✓ Clicked Solvent tab")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to click Solvent tab: {e}")
+
+# Find and click the code button for Solvent
+print("\nClicking code button for Solvent...")
+try:
+    code_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+    time.sleep(0.5)
+    
+    code_button.click()
+    print("✓ Clicked code button (<>) for Solvent")
+    time.sleep(2)
+    
+except Exception as e:
+    print(f"⚠ Failed to click code button for Solvent: {e}")
+
+# Scrape the data from Solvent code view
+print("\nScraping data from Solvent code view...")
+try:
+    time.sleep(1)
+    
+    code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+    
+    solvent_value = None
+    solvent_reaction_role = None
+    
+    for element in code_elements:
+        try:
+            text = element.text
+            
+            # Search for "value"
+            if '"value":' in text and not solvent_value:
+                value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                if value_match:
+                    solvent_value = value_match.group(1)
+                    print(f"✓ Found Solvent value: {solvent_value}")
+            
+            # Search for reaction_role
+            if 'reaction_role' in text and not solvent_reaction_role:
+                role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                if role_match:
+                    solvent_reaction_role = role_match.group(1)
+                    print(f"✓ Found Solvent reaction_role: {solvent_reaction_role}")
+            
+            if solvent_value and solvent_reaction_role:
+                break
+        except Exception:
+            continue
+    
+    if not solvent_value:
+        print("⚠ Could not find Solvent value")
+    if not solvent_reaction_role:
+        print("⚠ Could not find Solvent reaction_role")
+    
+except Exception as e:
+    print(f"⚠ Failed to scrape Solvent data: {e}")
+
+# Close the Solvent code view
+print("\nClosing Solvent code view...")
+try:
+    close_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+    time.sleep(0.3)
+    
+    close_button.click()
+    print("✓ Closed Solvent code view (clicked ✕)")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to close Solvent code view: {e}")
+
+# Click the amine tab
+print("\nClicking amine tab...")
+try:
+    amine_tab = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'tab') and contains(text(), 'amine')]"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", amine_tab)
+    time.sleep(0.5)
+    
+    amine_tab.click()
+    print("✓ Clicked amine tab")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to click amine tab: {e}")
+
+# Find and click the code button for amine
+print("\nClicking code button for amine...")
+try:
+    code_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+    time.sleep(0.5)
+    
+    code_button.click()
+    print("✓ Clicked code button (<>) for amine")
+    time.sleep(2)
+    
+except Exception as e:
+    print(f"⚠ Failed to click code button for amine: {e}")
+
+# Scrape the data from amine code view
+print("\nScraping data from amine code view...")
+try:
+    time.sleep(1)
+    
+    code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+    
+    amine_value = None
+    amine_reaction_role = None
+    
+    for element in code_elements:
+        try:
+            text = element.text
+            
+            # Search for "value"
+            if '"value":' in text and not amine_value:
+                value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                if value_match:
+                    amine_value = value_match.group(1)
+                    print(f"✓ Found amine value: {amine_value}")
+            
+            # Search for reaction_role
+            if 'reaction_role' in text and not amine_reaction_role:
+                role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                if role_match:
+                    amine_reaction_role = role_match.group(1)
+                    print(f"✓ Found amine reaction_role: {amine_reaction_role}")
+            
+            if amine_value and amine_reaction_role:
+                break
+        except Exception:
+            continue
+    
+    if not amine_value:
+        print("⚠ Could not find amine value")
+    if not amine_reaction_role:
+        print("⚠ Could not find amine reaction_role")
+    
+except Exception as e:
+    print(f"⚠ Failed to scrape amine data: {e}")
+
+# Close the amine code view
+print("\nClosing amine code view...")
+try:
+    close_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+    time.sleep(0.3)
+    
+    close_button.click()
+    print("✓ Closed amine code view (clicked ✕)")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to close amine code view: {e}")
+
+# Click the aryl halide tab
+print("\nClicking aryl halide tab...")
+try:
+    aryl_halide_tab = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'tab') and contains(text(), 'aryl halide')]"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", aryl_halide_tab)
+    time.sleep(0.5)
+    
+    aryl_halide_tab.click()
+    print("✓ Clicked aryl halide tab")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to click aryl halide tab: {e}")
+
+# Find and click the code button for aryl halide
+print("\nClicking code button for aryl halide...")
+try:
+    code_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+    time.sleep(0.5)
+    
+    code_button.click()
+    print("✓ Clicked code button (<>) for aryl halide")
+    time.sleep(2)
+    
+except Exception as e:
+    print(f"⚠ Failed to click code button for aryl halide: {e}")
+
+# Scrape the data from aryl halide code view
+print("\nScraping data from aryl halide code view...")
+try:
+    time.sleep(1)
+    
+    code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+    
+    aryl_halide_value = None
+    aryl_halide_reaction_role = None
+    
+    for element in code_elements:
+        try:
+            text = element.text
+            
+            # Search for "value"
+            if '"value":' in text and not aryl_halide_value:
+                value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                if value_match:
+                    aryl_halide_value = value_match.group(1)
+                    print(f"✓ Found aryl halide value: {aryl_halide_value}")
+            
+            # Search for reaction_role
+            if 'reaction_role' in text and not aryl_halide_reaction_role:
+                role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                if role_match:
+                    aryl_halide_reaction_role = role_match.group(1)
+                    print(f"✓ Found aryl halide reaction_role: {aryl_halide_reaction_role}")
+            
+            if aryl_halide_value and aryl_halide_reaction_role:
+                break
+        except Exception:
+            continue
+    
+    if not aryl_halide_value:
+        print("⚠ Could not find aryl halide value")
+    if not aryl_halide_reaction_role:
+        print("⚠ Could not find aryl halide reaction_role")
+    
+except Exception as e:
+    print(f"⚠ Failed to scrape aryl halide data: {e}")
+
+# Close the aryl halide code view
+print("\nClosing aryl halide code view...")
+try:
+    close_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+    time.sleep(0.3)
+    
+    close_button.click()
+    print("✓ Closed aryl halide code view (clicked ✕)")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to close aryl halide code view: {e}")
+
+# Click the metal and ligand tab
+print("\nClicking metal and ligand tab...")
+try:
+    metal_ligand_tab = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'tab') and contains(text(), 'metal and ligand')]"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", metal_ligand_tab)
+    time.sleep(0.5)
+    
+    metal_ligand_tab.click()
+    print("✓ Clicked metal and ligand tab")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to click metal and ligand tab: {e}")
+
+# Find and click the first code button for metal and ligand (metal)
+print("\nClicking first code button for metal and ligand (metal)...")
+try:
+    code_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+    time.sleep(0.5)
+    
+    code_button.click()
+    print("✓ Clicked first code button (<>) for metal")
+    time.sleep(2)
+    
+except Exception as e:
+    print(f"⚠ Failed to click first code button for metal: {e}")
+
+# Scrape the data from metal code view
+print("\nScraping data from metal code view...")
+try:
+    time.sleep(1)
+    
+    code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+    
+    metal_value = None
+    metal_reaction_role = None
+    
+    for element in code_elements:
+        try:
+            text = element.text
+            
+            # Search for "value"
+            if '"value":' in text and not metal_value:
+                value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                if value_match:
+                    metal_value = value_match.group(1)
+                    print(f"✓ Found metal value: {metal_value}")
+            
+            # Search for reaction_role
+            if 'reaction_role' in text and not metal_reaction_role:
+                role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                if role_match:
+                    metal_reaction_role = role_match.group(1)
+                    print(f"✓ Found metal reaction_role: {metal_reaction_role}")
+            
+            if metal_value and metal_reaction_role:
+                break
+        except Exception:
+            continue
+    
+    if not metal_value:
+        print("⚠ Could not find metal value")
+    if not metal_reaction_role:
+        print("⚠ Could not find metal reaction_role")
+    
+except Exception as e:
+    print(f"⚠ Failed to scrape metal data: {e}")
+
+# Close the metal code view
+print("\nClosing metal code view...")
+try:
+    close_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+    time.sleep(0.3)
+    
+    close_button.click()
+    print("✓ Closed metal code view (clicked ✕)")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to close metal code view: {e}")
+
+# Find and click the second code button for metal and ligand (ligand)
+print("\nClicking second code button for metal and ligand (ligand)...")
+try:
+    # Grab all code buttons and click the second one to avoid reusing the first
+    code_buttons = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+    )
+    if len(code_buttons) > 1:
+        code_button = code_buttons[1]
+    else:
+        code_button = code_buttons[0]
+
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+    time.sleep(0.5)
+
+    code_button.click()
+    print("✓ Clicked second code button (<>) for ligand")
+    time.sleep(2)
+    
+except Exception as e:
+    print(f"⚠ Failed to click second code button for ligand: {e}")
+
+# Scrape the data from ligand code view
+print("\nScraping data from ligand code view...")
+try:
+    time.sleep(1)
+    
+    code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+    
+    ligand_value = None
+    ligand_reaction_role = None
+    
+    for element in code_elements:
+        try:
+            text = element.text
+            
+            # Search for "value"
+            if '"value":' in text and not ligand_value:
+                value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                if value_match:
+                    ligand_value = value_match.group(1)
+                    print(f"✓ Found ligand value: {ligand_value}")
+            
+            # Search for reaction_role
+            if 'reaction_role' in text and not ligand_reaction_role:
+                role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                if role_match:
+                    ligand_reaction_role = role_match.group(1)
+                    print(f"✓ Found ligand reaction_role: {ligand_reaction_role}")
+            
+            if ligand_value and ligand_reaction_role:
+                break
+        except Exception:
+            continue
+    
+    if not ligand_value:
+        print("⚠ Could not find ligand value")
+    if not ligand_reaction_role:
+        print("⚠ Could not find ligand reaction_role")
+    
+except Exception as e:
+    print(f"⚠ Failed to scrape ligand data: {e}")
+
+# Close the ligand code view
+print("\nClosing ligand code view...")
+try:
+    close_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+    time.sleep(0.3)
+    
+    close_button.click()
+    print("✓ Closed ligand code view (clicked ✕)")
+    time.sleep(1)
+    
+except Exception as e:
+    print(f"⚠ Failed to close ligand code view: {e}")
+
+# Scroll down after ligand section
+print("\nScrolling down")
+driver.execute_script("window.scrollBy(0, 1000);")
+time.sleep(1)
+
+# Find and click the product raw code button (sibling role = product)
+print("\nClicking product raw code button...")
+try:
+    code_button = WebDriverWait(driver, 12).until(
+        EC.element_to_be_clickable((By.XPATH,
+            "//div[contains(@class,'compound')][.//div[contains(@class,'role') and contains(.,'product')]]//div[contains(@class,'raw')]//div[contains(@class,'button')]"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+    time.sleep(0.5)
+    code_button.click()
+    print("✓ Clicked product raw code button (<>)")
+    time.sleep(2)
+except Exception as e:
+    print(f"⚠ Failed to click product raw code button: {e}")
+
+# Scrape data from product raw view
+print("\nScraping product raw data...")
+try:
+    time.sleep(1)
+    code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+    product_value = None
+    product_reaction_role = None
+    for element in code_elements:
+        try:
+            text = element.text
+            if '"value":' in text and not product_value:
+                m = re.search(r'"value":\s*"([^"]+)"', text)
+                if m:
+                    product_value = m.group(1)
+                    print(f"✓ Found product value: {product_value}")
+            if 'reaction_role' in text and not product_reaction_role:
+                r = re.search(r'reaction_role:\s*(\w+)', text)
+                if r:
+                    product_reaction_role = r.group(1)
+                    print(f"✓ Found product reaction_role: {product_reaction_role}")
+            if product_value and product_reaction_role:
+                break
+        except Exception:
+            continue
+    if not product_value:
+        print("⚠ Could not find product value")
+    if not product_reaction_role:
+        print("⚠ Could not find product reaction_role")
+except Exception as e:
+    print(f"⚠ Failed to scrape product data: {e}")
+
+# Close this code view
+print("\nClosing code view...")
+try:
+    close_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+    time.sleep(0.3)
+    close_button.click()
+    print("✓ Closed code view (clicked ✕)")
+    time.sleep(1)
+except Exception as e:
+    print(f"⚠ Failed to close code view: {e}")
+
+# Click the yield raw icon
+print("\nClicking yield raw code button...")
+try:
+    yield_button = WebDriverWait(driver, 12).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-5fabe866].button"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", yield_button)
+    time.sleep(0.5)
+    yield_button.click()
+    print("✓ Clicked yield raw code button (<>)")
+    time.sleep(2)
+except Exception as e:
+    print(f"⚠ Failed to click yield raw code button: {e}")
+
+# Scrape yield data (type and percentage value)
+print("\nScraping yield raw data...")
+try:
+    time.sleep(1)
+    code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+    yield_type = None
+    yield_value = None
+    for element in code_elements:
+        try:
+            text = element.text
+            if '"type"' in text and not yield_type:
+                m = re.search(r'"type":\s*"([^"]+)"', text)
+                if m:
+                    yield_type = m.group(1)
+                    print(f"✓ Found yield type: {yield_type}")
+            if '"value"' in text and not yield_value:
+                v = re.search(r'"value":\s*([0-9.+\-eE]+)', text)
+                if v:
+                    yield_value = v.group(1)
+                    print(f"✓ Found yield value: {yield_value}")
+            if yield_type and yield_value:
+                break
+        except Exception:
+            continue
+    if not yield_type:
+        print("⚠ Could not find yield type")
+    if not yield_value:
+        print("⚠ Could not find yield value")
+except Exception as e:
+    print(f"⚠ Failed to scrape yield data: {e}")
+
+# Close the yield raw view
+print("\nClosing yield code view...")
+try:
+    close_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+    time.sleep(0.3)
+    close_button.click()
+    print("✓ Closed yield code view (clicked ✕)")
+    time.sleep(1)
+except Exception as e:
+    print(f"⚠ Failed to close yield code view: {e}")
+
+# Close current tab and return to dataset tab
+print("\nClosing current tab and returning to dataset tab...")
+try:
+    driver.close()
+    driver.switch_to.window(dataset_handle)
+    print("✓ Switched back to dataset tab")
+except Exception as e:
+    print(f"⚠ Failed to close tab or switch back: {e}")
+
+
+# Mark the first View Full Details as processed (already scraped above)
+print("\nMarking first View Full Details as processed...")
+try:
+    vfd_buttons = driver.find_elements(By.CSS_SELECTOR, "button[data-v-652da20a='']")
+    if vfd_buttons:
+        driver.execute_script("arguments[0].setAttribute('data-processed','1');", vfd_buttons[0])
+        print("✓ Marked first View Full Details as processed")
+    else:
+        print("⚠ No View Full Details buttons found to mark")
+except Exception as e:
+    print(f"⚠ Could not mark first View Full Details: {e}")
+
+# Loop over remaining View Full Details buttons
+print("\nProcessing remaining View Full Details buttons in a loop...")
+main_handle = dataset_handle  # Use the saved dataset handle
+processed_count = 1  # first entry already scraped
+while True:
+    try:
+        vfd_btn = WebDriverWait(driver, 6).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-v-652da20a='']:not([data-processed])"))
+        )
+    except Exception:
+        print("No more View Full Details buttons found. Loop done.")
+        break
+
+    try:
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", vfd_btn)
+        time.sleep(0.4)
+        # Mark as processed to avoid re-clicking the same button
+        driver.execute_script("arguments[0].setAttribute('data-processed','1');", vfd_btn)
+
+        target_url = None
+        
+        # Try to find parent link with href
+        try:
+            parent_link = vfd_btn.find_element(By.XPATH, "ancestor::a[@href]")
+            target_url = parent_link.get_attribute('href')
+            print(f"✓ Found target URL from parent link: {target_url}")
+        except Exception as e1:
+            print(f"⚠ Could not find parent link: {e1}")
+            
+            # Fallback: Try to extract href from parent's onclick or data attributes
+            try:
+                onclick = vfd_btn.get_attribute('onclick')
+                if onclick:
+                    print(f"onclick attribute: {onclick}")
+                # Try to find router link or similar
+                parent = vfd_btn.find_element(By.XPATH, "ancestor::*[@href or @to or @data-href]")
+                target_url = parent.get_attribute('href') or parent.get_attribute('to') or parent.get_attribute('data-href')
+                print(f"✓ Found target URL from parent attribute: {target_url}")
+            except Exception as e2:
+                print(f"⚠ Could not find from attributes: {e2}")
+
+        if target_url:
+            driver.execute_script("window.open(arguments[0], '_blank');", target_url)
+            print(f"✓ Opened View Full Details in new tab: {target_url}")
+            time.sleep(2)
+        else:
+            print("⚠ No target URL found; cannot proceed to avoid browse page navigation")
+            continue
+
+        # Switch to new tab
+        current_handles = set(driver.window_handles)
+        new_handle = None
+        for h in current_handles:
+            if h != main_handle:
+                new_handle = h
+        if not new_handle:
+            print("⚠ No new tab handle found; skipping this entry")
+            continue
+        driver.switch_to.window(new_handle)
+        print("✓ Switched to details tab")
+        wait_ready(10)
+        time.sleep(2)
+
+        # Scroll down to find the code button for Base tab
+        print("\nScrolling to find code button...")
+        try:
+            for _ in range(10):
+                driver.execute_script("window.scrollBy(0, 75);")
+                time.sleep(0.3)
+            
+            code_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+            time.sleep(0.5)
+            code_button.click()
+            print("✓ Clicked code button (<>) for Base")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠ Failed to find/click code button: {e}")
+
+        # Scrape Base data
+        print("\nScraping Base data...")
+        try:
+            time.sleep(1)
+            code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+            base_value = None
+            base_reaction_role = None
+            for element in code_elements:
+                try:
+                    text = element.text
+                    if '"value":' in text and not base_value:
+                        value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                        if value_match:
+                            base_value = value_match.group(1)
+                            print(f"✓ Found Base value: {base_value}")
+                    if 'reaction_role' in text and not base_reaction_role:
+                        role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                        if role_match:
+                            base_reaction_role = role_match.group(1)
+                            print(f"✓ Found Base reaction_role: {base_reaction_role}")
+                    if base_value and base_reaction_role:
+                        break
+                except Exception:
+                    continue
+            if not base_value:
+                print("⚠ Could not find Base value")
+            if not base_reaction_role:
+                print("⚠ Could not find Base reaction_role")
+        except Exception as e:
+            print(f"⚠ Failed to scrape Base data: {e}")
+
+        # Close code view
+        print("\nClosing code view...")
+        try:
+            close_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+            time.sleep(0.3)
+            close_button.click()
+            print("✓ Closed code view (clicked ✕)")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to close code view: {e}")
+
+        # Click Solvent tab and scrape
+        print("\nClicking Solvent tab...")
+        try:
+            solvent_tab = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'tab') and contains(text(), 'Solvent')]"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", solvent_tab)
+            time.sleep(0.5)
+            solvent_tab.click()
+            print("✓ Clicked Solvent tab")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to click Solvent tab: {e}")
+
+        print("\nClicking code button for Solvent...")
+        try:
+            code_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+            time.sleep(0.5)
+            code_button.click()
+            print("✓ Clicked code button (<>) for Solvent")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠ Failed to click code button for Solvent: {e}")
+
+        print("\nScraping Solvent data...")
+        try:
+            time.sleep(1)
+            code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+            solvent_value = None
+            solvent_reaction_role = None
+            for element in code_elements:
+                try:
+                    text = element.text
+                    if '"value":' in text and not solvent_value:
+                        value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                        if value_match:
+                            solvent_value = value_match.group(1)
+                            print(f"✓ Found Solvent value: {solvent_value}")
+                    if 'reaction_role' in text and not solvent_reaction_role:
+                        role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                        if role_match:
+                            solvent_reaction_role = role_match.group(1)
+                            print(f"✓ Found Solvent reaction_role: {solvent_reaction_role}")
+                    if solvent_value and solvent_reaction_role:
+                        break
+                except Exception:
+                    continue
+            if not solvent_value:
+                print("⚠ Could not find Solvent value")
+            if not solvent_reaction_role:
+                print("⚠ Could not find Solvent reaction_role")
+        except Exception as e:
+            print(f"⚠ Failed to scrape Solvent data: {e}")
+
+        print("\nClosing Solvent code view...")
+        try:
+            close_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+            time.sleep(0.3)
+            close_button.click()
+            print("✓ Closed Solvent code view (clicked ✕)")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to close Solvent code view: {e}")
+
+        # Click amine tab and scrape
+        print("\nClicking amine tab...")
+        try:
+            amine_tab = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'tab') and contains(text(), 'amine')]"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", amine_tab)
+            time.sleep(0.5)
+            amine_tab.click()
+            print("✓ Clicked amine tab")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to click amine tab: {e}")
+
+        print("\nClicking code button for amine...")
+        try:
+            code_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+            time.sleep(0.5)
+            code_button.click()
+            print("✓ Clicked code button (<>) for amine")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠ Failed to click code button for amine: {e}")
+
+        print("\nScraping amine data...")
+        try:
+            time.sleep(1)
+            code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+            amine_value = None
+            amine_reaction_role = None
+            for element in code_elements:
+                try:
+                    text = element.text
+                    if '"value":' in text and not amine_value:
+                        value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                        if value_match:
+                            amine_value = value_match.group(1)
+                            print(f"✓ Found amine value: {amine_value}")
+                    if 'reaction_role' in text and not amine_reaction_role:
+                        role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                        if role_match:
+                            amine_reaction_role = role_match.group(1)
+                            print(f"✓ Found amine reaction_role: {amine_reaction_role}")
+                    if amine_value and amine_reaction_role:
+                        break
+                except Exception:
+                    continue
+            if not amine_value:
+                print("⚠ Could not find amine value")
+            if not amine_reaction_role:
+                print("⚠ Could not find amine reaction_role")
+        except Exception as e:
+            print(f"⚠ Failed to scrape amine data: {e}")
+
+        print("\nClosing amine code view...")
+        try:
+            close_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+            time.sleep(0.3)
+            close_button.click()
+            print("✓ Closed amine code view (clicked ✕)")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to close amine code view: {e}")
+
+        # Click aryl halide tab and scrape
+        print("\nClicking aryl halide tab...")
+        try:
+            aryl_halide_tab = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'tab') and contains(text(), 'aryl halide')]"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", aryl_halide_tab)
+            time.sleep(0.5)
+            aryl_halide_tab.click()
+            print("✓ Clicked aryl halide tab")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to click aryl halide tab: {e}")
+
+        print("\nClicking code button for aryl halide...")
+        try:
+            code_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+            time.sleep(0.5)
+            code_button.click()
+            print("✓ Clicked code button (<>) for aryl halide")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠ Failed to click code button for aryl halide: {e}")
+
+        print("\nScraping aryl halide data...")
+        try:
+            time.sleep(1)
+            code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+            aryl_halide_value = None
+            aryl_halide_reaction_role = None
+            for element in code_elements:
+                try:
+                    text = element.text
+                    if '"value":' in text and not aryl_halide_value:
+                        value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                        if value_match:
+                            aryl_halide_value = value_match.group(1)
+                            print(f"✓ Found aryl halide value: {aryl_halide_value}")
+                    if 'reaction_role' in text and not aryl_halide_reaction_role:
+                        role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                        if role_match:
+                            aryl_halide_reaction_role = role_match.group(1)
+                            print(f"✓ Found aryl halide reaction_role: {aryl_halide_reaction_role}")
+                    if aryl_halide_value and aryl_halide_reaction_role:
+                        break
+                except Exception:
+                    continue
+            if not aryl_halide_value:
+                print("⚠ Could not find aryl halide value")
+            if not aryl_halide_reaction_role:
+                print("⚠ Could not find aryl halide reaction_role")
+        except Exception as e:
+            print(f"⚠ Failed to scrape aryl halide data: {e}")
+
+        print("\nClosing aryl halide code view...")
+        try:
+            close_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+            time.sleep(0.3)
+            close_button.click()
+            print("✓ Closed aryl halide code view (clicked ✕)")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to close aryl halide code view: {e}")
+
+        # Click metal and ligand tab and scrape metal
+        print("\nClicking metal and ligand tab...")
+        try:
+            metal_ligand_tab = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'tab') and contains(text(), 'metal and ligand')]"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", metal_ligand_tab)
+            time.sleep(0.5)
+            metal_ligand_tab.click()
+            print("✓ Clicked metal and ligand tab")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to click metal and ligand tab: {e}")
+
+        print("\nClicking first code button for metal...")
+        try:
+            code_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+            time.sleep(0.5)
+            code_button.click()
+            print("✓ Clicked first code button (<>) for metal")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠ Failed to click first code button for metal: {e}")
+
+        print("\nScraping metal data...")
+        try:
+            time.sleep(1)
+            code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+            metal_value = None
+            metal_reaction_role = None
+            for element in code_elements:
+                try:
+                    text = element.text
+                    if '"value":' in text and not metal_value:
+                        value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                        if value_match:
+                            metal_value = value_match.group(1)
+                            print(f"✓ Found metal value: {metal_value}")
+                    if 'reaction_role' in text and not metal_reaction_role:
+                        role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                        if role_match:
+                            metal_reaction_role = role_match.group(1)
+                            print(f"✓ Found metal reaction_role: {metal_reaction_role}")
+                    if metal_value and metal_reaction_role:
+                        break
+                except Exception:
+                    continue
+            if not metal_value:
+                print("⚠ Could not find metal value")
+            if not metal_reaction_role:
+                print("⚠ Could not find metal reaction_role")
+        except Exception as e:
+            print(f"⚠ Failed to scrape metal data: {e}")
+
+        print("\nClosing metal code view...")
+        try:
+            close_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+            time.sleep(0.3)
+            close_button.click()
+            print("✓ Closed metal code view (clicked ✕)")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to close metal code view: {e}")
+
+        print("\nClicking second code button for ligand...")
+        try:
+            code_buttons = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[data-v-144eb116].button"))
+            )
+            if len(code_buttons) > 1:
+                code_button = code_buttons[1]
+            else:
+                code_button = code_buttons[0]
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+            time.sleep(0.5)
+            code_button.click()
+            print("✓ Clicked second code button (<>) for ligand")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠ Failed to click second code button for ligand: {e}")
+
+        print("\nScraping ligand data...")
+        try:
+            time.sleep(1)
+            code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+            ligand_value = None
+            ligand_reaction_role = None
+            for element in code_elements:
+                try:
+                    text = element.text
+                    if '"value":' in text and not ligand_value:
+                        value_match = re.search(r'"value":\s*"([^"]+)"', text)
+                        if value_match:
+                            ligand_value = value_match.group(1)
+                            print(f"✓ Found ligand value: {ligand_value}")
+                    if 'reaction_role' in text and not ligand_reaction_role:
+                        role_match = re.search(r'reaction_role:\s*(\w+)', text)
+                        if role_match:
+                            ligand_reaction_role = role_match.group(1)
+                            print(f"✓ Found ligand reaction_role: {ligand_reaction_role}")
+                    if ligand_value and ligand_reaction_role:
+                        break
+                except Exception:
+                    continue
+            if not ligand_value:
+                print("⚠ Could not find ligand value")
+            if not ligand_reaction_role:
+                print("⚠ Could not find ligand reaction_role")
+        except Exception as e:
+            print(f"⚠ Failed to scrape ligand data: {e}")
+
+        print("\nClosing ligand code view...")
+        try:
+            close_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+            time.sleep(0.3)
+            close_button.click()
+            print("✓ Closed ligand code view (clicked ✕)")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to close ligand code view: {e}")
+
+        # Scroll down and scrape product
+        print("\nScrolling down to product section")
+        driver.execute_script("window.scrollBy(0, 1000);")
+        time.sleep(1)
+
+        print("\nClicking product raw code button...")
+        try:
+            code_button = WebDriverWait(driver, 12).until(
+                EC.element_to_be_clickable((By.XPATH,
+                    "//div[contains(@class,'compound')][.//div[contains(@class,'role') and contains(.,'product')]]//div[contains(@class,'raw')]//div[contains(@class,'button')]"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", code_button)
+            time.sleep(0.5)
+            code_button.click()
+            print("✓ Clicked product raw code button (<>)")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠ Failed to click product raw code button: {e}")
+
+        print("\nScraping product raw data...")
+        try:
+            time.sleep(1)
+            code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+            product_value = None
+            product_reaction_role = None
+            for element in code_elements:
+                try:
+                    text = element.text
+                    if '"value":' in text and not product_value:
+                        m = re.search(r'"value":\s*"([^"]+)"', text)
+                        if m:
+                            product_value = m.group(1)
+                            print(f"✓ Found product value: {product_value}")
+                    if 'reaction_role' in text and not product_reaction_role:
+                        r = re.search(r'reaction_role:\s*(\w+)', text)
+                        if r:
+                            product_reaction_role = r.group(1)
+                            print(f"✓ Found product reaction_role: {product_reaction_role}")
+                    if product_value and product_reaction_role:
+                        break
+                except Exception:
+                    continue
+            if not product_value:
+                print("⚠ Could not find product value")
+            if not product_reaction_role:
+                print("⚠ Could not find product reaction_role")
+        except Exception as e:
+            print(f"⚠ Failed to scrape product data: {e}")
+
+        print("\nClosing code view...")
+        try:
+            close_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+            time.sleep(0.3)
+            close_button.click()
+            print("✓ Closed code view (clicked ✕)")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to close code view: {e}")
+
+        # Click yield raw icon and scrape
+        print("\nClicking yield raw code button...")
+        try:
+            yield_button = WebDriverWait(driver, 12).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-5fabe866].button"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", yield_button)
+            time.sleep(0.5)
+            yield_button.click()
+            print("✓ Clicked yield raw code button (<>)")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠ Failed to click yield raw code button: {e}")
+
+        print("\nScraping yield raw data...")
+        try:
+            time.sleep(1)
+            code_elements = driver.find_elements(By.CSS_SELECTOR, "pre, code")
+            yield_type = None
+            yield_value = None
+            for element in code_elements:
+                try:
+                    text = element.text
+                    if '"type"' in text and not yield_type:
+                        m = re.search(r'"type":\s*"([^"]+)"', text)
+                        if m:
+                            yield_type = m.group(1)
+                            print(f"✓ Found yield type: {yield_type}")
+                    if '"value"' in text and not yield_value:
+                        v = re.search(r'"value":\s*([0-9.+\-eE]+)', text)
+                        if v:
+                            yield_value = v.group(1)
+                            print(f"✓ Found yield value: {yield_value}")
+                    if yield_type and yield_value:
+                        break
+                except Exception:
+                    continue
+            if not yield_type:
+                print("⚠ Could not find yield type")
+            if not yield_value:
+                print("⚠ Could not find yield value")
+        except Exception as e:
+            print(f"⚠ Failed to scrape yield data: {e}")
+
+        print("\nClosing yield code view...")
+        try:
+            close_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-v-419ab5e1].close"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+            time.sleep(0.3)
+            close_button.click()
+            print("✓ Closed yield code view (clicked ✕)")
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠ Failed to close yield code view: {e}")
+
+        # Close tab and return to dataset tab
+        print("\nClosing current tab and returning to dataset tab...")
+        try:
+            driver.close()
+            driver.switch_to.window(dataset_handle)
+            print("✓ Closed details tab and returned to dataset tab")
+        except Exception as e:
+            print(f"⚠ Failed to close tab or switch back: {e}")
+
+        processed_count += 1
+    except Exception as e:
+        print(f"⚠ Unexpected error during loop: {e}")
+        break
+
+print(f"Loop complete. Processed {processed_count} View Full Details entries.")
+
+
